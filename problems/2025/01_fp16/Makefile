@@ -1,10 +1,10 @@
 TEST_SIZE ?= 4096
-TEST_OP   ?= mul
-DEBUG     ?= 0
+TEST_OP   ?= add 
+DEBUG     ?= 1 #0
 
 TB_LIST := fp16u_tb.v
 
-RTL_LIST := fp16mul.v fp16add.v fp16daz_decoder.v fp16ftz_encoder.v
+RTL_LIST := fp16mul.v fp16add.v fp16daz_decoder.v fp16ftz_encoder.v sign_magnitude_add.v priority_msb16_encoder.v
 
 sim: $(TB_LIST) $(RTL_LIST)
 	python3 test.py $(TEST_SIZE) $(TEST_OP) > test.txt

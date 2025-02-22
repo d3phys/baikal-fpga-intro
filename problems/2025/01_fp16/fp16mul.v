@@ -54,9 +54,8 @@ always @(*) begin
     end
 end
 
-wire [2*`FP16_TYPE_WIDTH-1:0] pair = {a_type, b_type};
 always @(*) begin
-    case ( pair )
+    case ( {a_type, b_type} )
         // Combinations give special value NaN
         {`FP16_NAN,  `FP16_NAN  }: res_type = `FP16_NAN;
         {`FP16_NAN,  `FP16_ZERO }: res_type = `FP16_NAN;
@@ -67,6 +66,11 @@ always @(*) begin
         {`FP16_NORM, `FP16_NAN  }: res_type = `FP16_NAN;
         {`FP16_INF,  `FP16_ZERO }: res_type = `FP16_NAN;
         {`FP16_ZERO, `FP16_INF  }: res_type = `FP16_NAN;
+
+        // Combinations give special value Inf 
+        {`FP16_INF,  `FP16_INF  }: res_type = `FP16_INF;
+        {`FP16_INF,  `FP16_NORM }: res_type = `FP16_INF;
+        {`FP16_NORM, `FP16_INF  }: res_type = `FP16_INF;
 
         // Combinations give special value Zero
         {`FP16_ZERO, `FP16_ZERO }: res_type = `FP16_ZERO;
