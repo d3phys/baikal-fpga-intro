@@ -4,6 +4,7 @@ module hex_display #(
    input  wire        clk,
    input  wire        rst_n,
    input  wire [15:0] i_data,
+   input  wire        i_we,
    output wire  [3:0] o_anodes,
    output reg   [7:0] o_segments
 );
@@ -12,8 +13,15 @@ reg [CNT_WIDTH-1:0] cnt;
 wire          [1:0] pos = cnt[CNT_WIDTH-1:CNT_WIDTH-2];
 
 // Input is 4 digits:
-wire [3:0] digit3, digit2, digit1, digit0;
-assign {digit3, digit2, digit1, digit0} = i_data;
+reg [3:0] digit3, digit2, digit1, digit0;
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        {digit3, digit2, digit1, digit0} <= 16'b0;
+    end else if (i_we) begin
+        {digit3, digit2, digit1, digit0} <= i_data;
+    end
+end
 
 reg [3:0] digit;
 
