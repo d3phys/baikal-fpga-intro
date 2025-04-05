@@ -45,18 +45,18 @@ assign {lhs_sign, lhs_exponent, lhs_mantissa} = swap ? {b_sign, b_exponent, b_ma
 assign {rhs_sign, rhs_exponent, rhs_mantissa} = swap ? {a_sign, a_exponent, a_mantissa}
                                                      : {b_sign, b_exponent, b_mantissa};
 
-// Align mantissas
-wire [`FP16_MANTISSA_WIDTH-1:0] lhs_magnitude, rhs_magnitude;
-assign lhs_magnitude = lhs_mantissa;
-assign rhs_magnitude = rhs_mantissa >> abs_diff;
+// Align mantissas (use one guard bit for magnitudes)
+wire [`FP16_MANTISSA_WIDTH:0] lhs_magnitude, rhs_magnitude;
+assign lhs_magnitude = {lhs_mantissa, 1'b0};
+assign rhs_magnitude = {rhs_mantissa, 1'b0} >> abs_diff;
 
 // Sign-magnitude addition result
-wire [`FP16_MANTISSA_WIDTH-1:0] add_magnitude;
-wire                            add_overflow;
-wire                            add_sign;
+wire [`FP16_MANTISSA_WIDTH:0] add_magnitude;
+wire                          add_overflow;
+wire                          add_sign;
 
 sign_magnitude_add #(
-    .WIDTH(`FP16_MANTISSA_WIDTH)
+    .WIDTH(`FP16_MANTISSA_WIDTH + 1 /* Guard bit */)
 ) add_mantissas (
     .i_lhs_sign        (lhs_sign),
     .i_lhs_magnitude   (lhs_magnitude),
@@ -73,7 +73,7 @@ wire        enc_vld;
 wire  [3:0] enc_position;
 wire [15:0] enc_data;
 
-assign enc_data = {{5{1'b0}}, add_magnitude};
+assign enc_data = {{4{1'b0}}, add_magnitude};
 
 priority_msb16_encoder position_encoder
 (
@@ -83,15 +83,17 @@ priority_msb16_encoder position_encoder
 );
 
 wire [3:0] shift;
+assign shift = 16'd11 - enc_position;
 
-assign shift = 16'd10 - enc_position;
-
-// Is zero magnitude?
-wire zero = (add_magnitude == 0);
+wire [`FP16_MANTISSA_WIDTH:0] shift_magnitude;
+assign shift_magnitude = add_magnitude << shift;
 
 // Round Toward Zero -- simply drop guard bits
-assign mantissa = add_overflow ? {1'b1, add_magnitude[`FP16_MANTISSA_WIDTH-1:1]}
-                               : add_magnitude << shift;
+assign mantissa = add_overflow ? {1'b1, add_magnitude[`FP16_MANTISSA_WIDTH:2]}
+                               : shift_magnitude[`FP16_MANTISSA_WIDTH:1];
+
+// Is zero?
+wire zero = (mantissa == 0);
 
 // Calculate Exponent of the result:
 // Use two "guard bits" to handle overflow and underflow
@@ -108,7 +110,7 @@ assign sign = add_sign;
 always @(*) begin
     if ( zero || underflow ) begin
         calc_type = `FP16_ZERO;
-    end if ( overflow ) begin
+    end else if ( overflow ) begin
         calc_type = `FP16_INF;
     end else if ( res_exponent == 0 ) begin
         calc_type = `FP16_SUBN;
