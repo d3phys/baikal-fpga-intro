@@ -12,27 +12,33 @@ module sign_magnitude_add #(
     output wire             o_overflow
 );
 
-reg             sign;
-reg [WIDTH-1:0] result;
+wire            sign;
+reg [WIDTH-1:0] magnitude;
 reg             overflow;
 
-wire [WIDTH+1:0] lhs_magnitude, rhs_magnitude;
+wire           lhs_sign,      rhs_sign;
+wire [WIDTH:0] lhs_magnitude, rhs_magnitude;
 
-// Zero extend operands:
-assign lhs_magnitude = {2'b00, i_lhs_magnitude};
-assign rhs_magnitude = {2'b00, i_rhs_magnitude};
+wire swap = i_lhs_magnitude < i_rhs_magnitude;
+
+// Swap if needed (with one guard bit for overflow)
+assign {lhs_sign, lhs_magnitude} = swap ? {i_rhs_sign, {1'b0, i_rhs_magnitude}}
+                                        : {i_lhs_sign, {1'b0, i_lhs_magnitude}};
+assign {rhs_sign, rhs_magnitude} = swap ? {i_lhs_sign, {1'b0, i_lhs_magnitude}}
+                                        : {i_rhs_sign, {1'b0, i_rhs_magnitude}};
+
+assign sign = lhs_sign;
 
 always @(*) begin
-    case ({i_lhs_sign, i_rhs_sign})
-        2'b00: {sign, overflow, result} = (+lhs_magnitude) + (+rhs_magnitude);
-        2'b01: {sign, overflow, result} = (+lhs_magnitude) + (-rhs_magnitude);
-        2'b10: {sign, overflow, result} = (-lhs_magnitude) + (+rhs_magnitude);
-        2'b11: {sign, overflow, result} = (-lhs_magnitude) + (-rhs_magnitude);
-    endcase
+    if (lhs_sign == rhs_sign) begin
+        {overflow, magnitude} = lhs_magnitude + rhs_magnitude;
+    end else begin
+        {overflow, magnitude} = lhs_magnitude - rhs_magnitude;
+    end
 end
 
 assign o_sign      = sign;
-assign o_magnitude = sign ? -result : +result;
-assign o_overflow  = (overflow && !sign) || (!overflow && sign);
+assign o_magnitude = magnitude;
+assign o_overflow  = overflow;
 
 endmodule

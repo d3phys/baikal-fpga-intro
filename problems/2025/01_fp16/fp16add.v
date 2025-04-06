@@ -93,7 +93,7 @@ assign mantissa = add_overflow ? {1'b1, add_magnitude[`FP16_MANTISSA_WIDTH:2]}
                                : shift_magnitude[`FP16_MANTISSA_WIDTH:1];
 
 // Is zero?
-wire zero = (mantissa == 0);
+wire zero = (add_magnitude == 0 && !add_overflow);
 
 // Calculate Exponent of the result:
 // Use two "guard bits" to handle overflow and underflow
